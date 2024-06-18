@@ -1,69 +1,114 @@
-package org.msBank;
+package com.example;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
 
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Random;
-import java.util.Scanner;
+import java.util.*;
+import java.util.List;
 import java.util.stream.Stream;
 
 public class InvoiceGenerator {
+    private static final Scanner scanner = new Scanner(System.in);
+
+    static int invoiceCounter = 1;
+
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
+        List<InvoiceDetails> invoiceDetailsList = new ArrayList<>();
+        while (true) {
+            InvoiceDetails invoiceDetails = getInvoiceDetails();
+            invoiceDetailsList.add(invoiceDetails);
+
+            System.out.println("Want to enter another Customer details? \nPress 1 for 'YES' 2 for 'NO'");
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+
+            if (choice == 1) {
+                continue;
+            } else if (choice == 2) {
+                double total = 0;
+                for (InvoiceDetails details : invoiceDetailsList) {
+                    total += details.getFee();
+                }
+                System.out.println("Ending Invoice generation...! \nTotal fee collected = " + total);
+                break;
+            } else {
+                System.out.println("Invalid choice. Please enter 1 or 2.");
+            }
+        }
+        scanner.close();
+    }
+
+    private static InvoiceDetails getInvoiceDetails() {
+        InvoiceDetails invoiceDetails = new InvoiceDetails();
         System.out.println("Enter Customer Name : ");
-        String name = scanner.nextLine();
+        invoiceDetails.setCustomerName(scanner.nextLine().trim());
+        while (invoiceDetails.getCustomerName().isEmpty()) {
+            System.out.println("Customer name should not be empty !!");
+            System.out.println("Enter Customer Name : ");
+            invoiceDetails.setCustomerName(scanner.nextLine().trim());
+        }
+
         System.out.println("Enter Fee amount : ");
-        Double fee = scanner.nextDouble();
+        while (!scanner.hasNextDouble()) {
+            System.out.println("Invalid fee amount. Please enter a valid number:");
+            scanner.next();
+        }
+        invoiceDetails.setFee(scanner.nextDouble());
+        scanner.nextLine();
+
         System.out.println("Customer Type make a selection : \n 1. Member \n 2. Student \n 3. Others");
         int choice = scanner.nextInt();
         scanner.nextLine();
-        String customerType = "";
         while (true) {
             switch (choice) {
                 case 1:
-                    customerType = "Member";
+                    invoiceDetails.setCustomerType("Member");
                     break;
                 case 2:
-                    customerType = "Student";
+                    invoiceDetails.setCustomerType("Student");
                     break;
                 case 3:
-                    customerType = "Others";
+                    invoiceDetails.setCustomerType("Others");
                     break;
                 default:
                     System.out.println("Make a valid choice : ");
+                    choice = scanner.nextInt();
+                    scanner.nextLine();
                     continue;
             }
             break;
         }
 
         System.out.println("Enter City : ");
-        String city = scanner.nextLine();
+        invoiceDetails.setCity(scanner.nextLine().trim());
+
         System.out.println("Fee Payment mode make a selection : \n 1. Online \n 2. Offline");
         int ch = scanner.nextInt();
-        String paymentMode = "";
+        scanner.nextLine();
         while (true) {
             switch (ch) {
                 case 1:
-                    paymentMode = "Online";
+                    invoiceDetails.setPaymentMode("Online");
                     break;
                 case 2:
-                    paymentMode = "Offline";
+                    invoiceDetails.setPaymentMode("Offline");
                     break;
                 default:
                     System.out.println("Make a valid choice : ");
+                    ch = scanner.nextInt();
+                    scanner.nextLine();
                     continue;
             }
             break;
         }
-        Document document = new Document();
+
+        Document document = null;
         try {
-            PdfWriter.getInstance(document, new FileOutputStream(name + ".pdf"));
+            document = new Document();
+            PdfWriter.getInstance(document, new FileOutputStream(invoiceDetails.getCustomerName() + ".pdf"));
             document.open();
 
             // Adding invoice title
@@ -73,7 +118,7 @@ public class InvoiceGenerator {
             document.add(title);
 
             // Adding logo
-            Image logo = Image.getInstance("nandi_group_of_companies_india_logo.jpeg");
+            Image logo = Image.getInstance("src/main/resources/nandi_group_of_companies_india_logo.jpeg");
             logo.scaleAbsolute(100, 80);
             logo.setAlignment(Element.ALIGN_RIGHT);
             document.add(logo);
@@ -95,8 +140,8 @@ public class InvoiceGenerator {
             String date = new SimpleDateFormat("dd/MM/yyyy").format(new Date());
 
             addDetailsCell(detailsTable, "Bill To:-", PdfPCell.ALIGN_LEFT);
-            addDetailsCell(detailsTable, "Invoice No: " + generateInvoiceNumber(), PdfPCell.ALIGN_RIGHT);
-            addDetailsCell(detailsTable, "Name: " + name + "\n" + "Type: " + customerType + "\n" + "Place: " + city, PdfPCell.ALIGN_LEFT);
+            addDetailsCell(detailsTable, "Invoice No: " + getNextInvoiceNumber(), PdfPCell.ALIGN_RIGHT);
+            addDetailsCell(detailsTable, "Name: " + invoiceDetails.getCustomerName() + "\n" + "Type: " + invoiceDetails.getCustomerType() + "\n" + "Place: " + invoiceDetails.getCity(), PdfPCell.ALIGN_LEFT);
             addDetailsCell(detailsTable, "Invoice Date: " + date, PdfPCell.ALIGN_RIGHT);
 
             document.add(detailsTable);
@@ -107,7 +152,7 @@ public class InvoiceGenerator {
             addTableHeader(table);
 
             // Adding table rows
-            addRow(table, "1", "Monthly Fee\nPaid " + paymentMode, "1", fee.toString(), fee.toString());
+            addRow(table, "1", "Monthly Fee\nPaid " + invoiceDetails.getPaymentMode(), "1", String.valueOf(invoiceDetails.getFee()), String.valueOf(invoiceDetails.getFee()));
 
             document.add(table);
 
@@ -115,9 +160,9 @@ public class InvoiceGenerator {
             PdfPTable totalTable = new PdfPTable(2);
             totalTable.setWidthPercentage(75);
             addTotalRow(totalTable, "", "");
-            addTotalRow(totalTable, "Subtotal", fee.toString());
-            addTotalRow(totalTable, "Total", fee.toString());
-            addTotalRow(totalTable, "Paid (" + date + ")", fee.toString());
+            addTotalRow(totalTable, "Subtotal", String.valueOf(invoiceDetails.getFee()));
+            addTotalRow(totalTable, "Total", String.valueOf(invoiceDetails.getFee()));
+            addTotalRow(totalTable, "Paid (" + date + ")", String.valueOf(invoiceDetails.getFee()));
             addTotalRow(totalTable, "Balance Due", "0.00");
 
             document.add(totalTable);
@@ -135,7 +180,7 @@ public class InvoiceGenerator {
             document.add(notePara2);
 
             // Adding signature
-            Image signature = Image.getInstance("signature.png");
+            Image signature = Image.getInstance("src/main/resources/signature.png");
             signature.scaleAbsolute(100, 50);
             signature.setAlignment(Element.ALIGN_RIGHT);
             document.add(signature);
@@ -143,15 +188,15 @@ public class InvoiceGenerator {
             signatoryParagraph.setAlignment(Element.ALIGN_RIGHT);
             document.add(signatoryParagraph);
 
-        } catch (DocumentException | FileNotFoundException e) {
+        } catch (DocumentException | IOException e) {
             e.printStackTrace();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         } finally {
-            document.close();
+            if (document != null) {
+                document.close();
+            }
         }
+
+        return invoiceDetails;
     }
 
     private static void addDetailsCell(PdfPTable table, String text, int alignment) {
@@ -161,11 +206,10 @@ public class InvoiceGenerator {
         table.addCell(cell);
     }
 
-    public static String generateInvoiceNumber() {
-        String prefix = "NPBA-";
-        Random random = new Random();
-        int randomFourDigitNumber = 1000 + random.nextInt(9000);
-        return prefix + randomFourDigitNumber;
+    public static String getNextInvoiceNumber() {
+        int PADDING = 4;
+        String PREFIX = "NPBA-";
+        return PREFIX + String.format("%0" + PADDING + "d", invoiceCounter++);
     }
 
     private static void addTableHeader(PdfPTable table) {
@@ -190,11 +234,59 @@ public class InvoiceGenerator {
     private static void addTotalRow(PdfPTable table, String label, String value) {
         PdfPCell cell = new PdfPCell(new Phrase(label));
         cell.setBorder(PdfPCell.NO_BORDER);
+        cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
         table.addCell(cell);
+        cell = new PdfPCell(new Phrase(value));
+        cell.setBorder(PdfPCell.NO_BORDER);
+        cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        table.addCell(cell);
+    }
 
-        PdfPCell valueCell = new PdfPCell(new Phrase(value));
-        valueCell.setBorder(PdfPCell.NO_BORDER);
-        valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        table.addCell(valueCell);
+    private static class InvoiceDetails {
+        private String customerName;
+        private double fee;
+        private String customerType;
+        private String city;
+        private String paymentMode;
+
+        public String getCustomerName() {
+            return customerName;
+        }
+
+        public void setCustomerName(String customerName) {
+            this.customerName = customerName;
+        }
+
+        public double getFee() {
+            return fee;
+        }
+
+        public void setFee(double fee) {
+            this.fee = fee;
+        }
+
+        public String getCustomerType() {
+            return customerType;
+        }
+
+        public void setCustomerType(String customerType) {
+            this.customerType = customerType;
+        }
+
+        public String getCity() {
+            return city;
+        }
+
+        public void setCity(String city) {
+            this.city = city;
+        }
+
+        public String getPaymentMode() {
+            return paymentMode;
+        }
+
+        public void setPaymentMode(String paymentMode) {
+            this.paymentMode = paymentMode;
+        }
     }
 }
